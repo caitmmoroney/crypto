@@ -44,7 +44,7 @@ class PublicCoinbaseAuth(AuthBase):
             api_url = api_url + '/'
         self.api_url = api_url
 
-    def getprice(self, market_symbol: str = 'ETH-USD'):
+    def getexchangeprice(self, market_symbol: str = 'ETH-USD'):
         rdict = requests.get(f'{self.api_url}products/{market_symbol}/ticker').json()
 
         return rdict['price']
