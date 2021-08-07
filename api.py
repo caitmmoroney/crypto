@@ -87,6 +87,33 @@ class CoinbaseExchangeAuth(AuthBase):
                         qty=qty,
                         price=price)
 
+    def makedeposit(self,
+                    bank: str,
+                    account_last4digits: str,
+                    amount=10.00,
+                    currency: str = 'USD'):
+
+        payment_methods = self.getpaymentmethods()
+        payment_methods = payment_methods[payment_methods.allow_deposit == 'true']
+        payment_methods.reset_index(drop=True, inplace=True)
+        if any([el.startswith(bank) & el.endswith(account_last4digits) for el in payment_methods['name']]):
+            selected_method = payment_methods[payment_methods['name'].startswith(bank) &
+                                              payment_methods['name'].endswith(account_last4digits)]
+            deposit = {
+                "amount": amount,
+                "currency": currency,
+                "payment_method_id": selected_method
+            }
+            r = requests.post(self.api_url + 'deposits/payment-method', json=deposit, auth=self)
+            print(f'Deposit ID: {r.json()["id"]}')
+        else:
+            print(f'Please specify a bank account which has withdraw permissions.')
+
+    def getpaymentmethods(self):
+        r = requests.get(self.api_url + 'payment-methods', auth=self)
+        df = pd.DataFrame.from_dict(r.json())
+        return df
+
 
 # Create class for accessing public API
 class PublicCoinbaseAuth(AuthBase):
