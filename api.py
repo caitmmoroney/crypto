@@ -5,6 +5,7 @@ import hmac
 from requests.auth import AuthBase
 import time
 import requests
+import pandas as pd
 
 
 # Define classes
@@ -12,15 +13,18 @@ import requests
 
 # Create custom authentication for Exchange
 class CoinbaseExchangeAuth(AuthBase):
-    def __init__(self, api_key, secret_key, passphrase):
+    def __init__(self, api_key, secret_key, passphrase, api_url):
         self.api_key = api_key
         self.secret_key = secret_key
         self.passphrase = passphrase
+        if api_url[-1] != '/':
+            api_url = api_url + '/'
+        self.api_url = api_url
 
     def __call__(self, request):
         timestamp = str(time.time())
         body = (
-                    request.body or b"").decode()  # this line taken from pycryptobot AuthAPI __call__ method (https://github.com/whittlem/pycryptobot/blob/main/models/exchange/coinbase_pro/api.py)
+                request.body or b"").decode()  # this line taken from pycryptobot AuthAPI __call__ method (https://github.com/whittlem/pycryptobot/blob/main/models/exchange/coinbase_pro/api.py)
         message = timestamp + request.method + request.path_url + body
         hmac_key = base64.b64decode(self.secret_key)  # bytes object
         signature = hmac.new(hmac_key, message.encode(), digestmod=hashlib.sha256)
@@ -36,6 +40,53 @@ class CoinbaseExchangeAuth(AuthBase):
         })
         return request
 
+    def getaccounts(self):
+        r = requests.get(self.api_url + 'accounts', auth=self)
+        df = pd.DataFrame.from_dict(r.json())
+        df = df[df.balance != '0.0000000000000000']
+        df.reset_index(inplace=True, drop=True)
+
+        return df
+
+    def placeorder(self,
+                   buy_or_sell: str = 'buy',
+                   product_market: str = 'ETH-USD',
+                   qty=1.0,
+                   price=1.0):
+        # validate product market
+        products = PublicCoinbaseAuth(self.api_url).getproducts()
+
+        if product_market not in products:
+            print(f'The order could not be placed because the provided product exchange is not listed on Coinbase Pro.')
+        else:
+            order = {
+                'size': qty,
+                'price': price,
+                'side': buy_or_sell,
+                'product_id': product_market,
+            }
+
+            r = requests.post(self.api_url + 'orders', json=order, auth=self)
+            print(f'Order ID: {r.json()["id"]}')
+
+    def buyorder(self,
+                 product_market: str = 'ETH-USD',
+                 qty=1.0,
+                 price=1.0):
+        self.placeorder(buy_or_sell='buy',
+                        product_market=product_market,
+                        qty=qty,
+                        price=price)
+
+    def sellorder(self,
+                 product_market: str = 'ETH-USD',
+                 qty=1.0,
+                 price=1.0):
+        self.placeorder(buy_or_sell='sell',
+                        product_market=product_market,
+                        qty=qty,
+                        price=price)
+
 
 # Create class for accessing public API
 class PublicCoinbaseAuth(AuthBase):
@@ -48,3 +99,10 @@ class PublicCoinbaseAuth(AuthBase):
         rdict = requests.get(f'{self.api_url}products/{market_symbol}/ticker').json()
 
         return rdict['price']
+
+    def getproducts(self):
+        rdict = requests.get(f'{self.api_url}products/').json()
+
+        df = pd.DataFrame.from_dict(rdict)
+
+        return df['id'].tolist()
