@@ -107,7 +107,7 @@ class CoinbaseExchangeAuth(AuthBase):
             r = requests.post(self.api_url + 'deposits/payment-method', json=deposit, auth=self)
             print(f'Deposit ID: {r.json()["id"]}')
         else:
-            print(f'Please specify a bank account which has withdraw permissions.')
+            print(f'Please specify a bank account which has deposit permissions.')
 
     def getpaymentmethods(self):
         r = requests.get(self.api_url + 'payment-methods', auth=self)
