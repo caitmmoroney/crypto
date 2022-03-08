@@ -23,8 +23,9 @@ class CoinbaseExchangeAuth(AuthBase):
 
     def __call__(self, request):
         timestamp = str(time.time())
-        body = (
-                request.body or b"").decode()  # this line taken from pycryptobot AuthAPI __call__ method (https://github.com/whittlem/pycryptobot/blob/main/models/exchange/coinbase_pro/api.py)
+        # this line taken from pycryptobot AuthAPI __call__ method:
+        # https://github.com/whittlem/pycryptobot/blob/main/models/exchange/coinbase_pro/api.py
+        body = (request.body or b"").decode()
         message = timestamp + request.method + request.path_url + body
         hmac_key = base64.b64decode(self.secret_key)  # bytes object
         signature = hmac.new(hmac_key, message.encode(), digestmod=hashlib.sha256)
@@ -79,9 +80,9 @@ class CoinbaseExchangeAuth(AuthBase):
                         price=price)
 
     def sellorder(self,
-                 product_market: str = 'ETH-USD',
-                 qty=1.0,
-                 price=1.0):
+                  product_market: str = 'ETH-USD',
+                  qty=1.0,
+                  price=1.0):
         self.placeorder(buy_or_sell='sell',
                         product_market=product_market,
                         qty=qty,
